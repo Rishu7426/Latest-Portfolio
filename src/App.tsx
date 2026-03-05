@@ -41,6 +41,22 @@ function cn(...inputs: ClassValue[]) {
 
 // --- Intersection Observer Hook & Component ---
 
+const Parallax = ({ children, offset = 50, className = "" }: { children: React.ReactNode, offset?: number, className?: string, key?: React.Key }) => {
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"]
+  });
+
+  const y = useTransform(scrollYProgress, [0, 1], [-offset, offset]);
+
+  return (
+    <motion.div ref={ref} style={{ y }} className={className}>
+      {children}
+    </motion.div>
+  );
+};
+
 const useIntersectionObserver = (options = {}) => {
   const [isIntersecting, setIsIntersecting] = useState(false);
   const elementRef = useRef<HTMLDivElement>(null);
@@ -191,63 +207,46 @@ const Navbar = () => {
 const Hero = () => {
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, 200]);
-  const bgY1 = useTransform(scrollYProgress, [0, 1], [0, -150]);
-  const bgY2 = useTransform(scrollYProgress, [0, 1], [0, -100]);
-  const noiseY = useTransform(scrollYProgress, [0, 1], [0, 50]);
 
   return (
-    <section id="about" className="relative h-screen flex items-center justify-center overflow-hidden pt-20">
-      {/* Background Elements */}
-      <div className="absolute inset-0 z-0">
+    <section id="about" className="relative h-screen flex items-center justify-center overflow-hidden pt-20 px-6">
+      <Reveal className="w-full max-w-5xl">
         <motion.div 
-          style={{ y: bgY1 }}
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/20 rounded-full blur-[120px] animate-pulse" 
-        />
-        <motion.div 
-          style={{ y: bgY2 }}
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] animate-pulse delay-700" 
-        />
-        <motion.div 
-          style={{ y: noiseY }}
-          className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" 
-        />
-      </div>
-
-      <motion.div 
-        style={{ y }}
-        className="relative z-10 text-center px-6 max-w-4xl"
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          style={{ y }}
+          className="glass relative z-10 text-center p-12 md:p-24 rounded-[40px] border border-white/10"
         >
-          <span className="inline-block px-3 py-1 rounded-full border border-accent/30 bg-accent/10 text-accent text-xs font-mono mb-6">
-            AVAILABLE FOR ARCHITECTURE & LEADERSHIP
-          </span>
-          <h1 className="text-6xl md:text-8xl font-bold tracking-tight mb-6 leading-[0.9]">
-            Building <span className="text-gradient">Digital</span> <br />
-            Infrastructure.
-          </h1>
-          <p className="text-zinc-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 font-light leading-relaxed">
-            Senior Staff Engineer with 12+ years of experience in distributed systems, 
-            cloud architecture, and high-performance frontend engineering.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <a 
-              href="#projects"
-              className="px-8 py-4 bg-white text-black font-bold rounded-full flex items-center gap-2 hover:bg-accent transition-all group"
-            >
-              View Projects <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-            </a>
-            <div className="flex items-center gap-4 px-4">
-              <a href="#" className="text-zinc-400 hover:text-white transition-colors"><Github className="w-6 h-6" /></a>
-              <a href="#" className="text-zinc-400 hover:text-white transition-colors"><Linkedin className="w-6 h-6" /></a>
-              <a href="#" className="text-zinc-400 hover:text-white transition-colors"><Mail className="w-6 h-6" /></a>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <span className="inline-block px-3 py-1 rounded-full border border-accent/30 bg-accent/10 text-accent text-xs font-mono mb-6">
+              AVAILABLE FOR ARCHITECTURE & LEADERSHIP
+            </span>
+            <h1 className="text-6xl md:text-8xl font-bold tracking-tight mb-6 leading-[0.9] text-white">
+              Building <span className="text-gradient">Digital</span> <br />
+              Infrastructure.
+            </h1>
+            <p className="text-zinc-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 font-light leading-relaxed">
+              Senior Staff Engineer with 12+ years of experience in distributed systems, 
+              cloud architecture, and high-performance frontend engineering.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <a 
+                href="#projects"
+                className="px-8 py-4 bg-white text-black font-bold rounded-full flex items-center gap-2 hover:bg-accent transition-all group"
+              >
+                View Projects <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+              </a>
+              <div className="flex items-center gap-4 px-4">
+                <a href="#" className="text-zinc-400 hover:text-white transition-colors"><Github className="w-6 h-6" /></a>
+                <a href="#" className="text-zinc-400 hover:text-white transition-colors"><Linkedin className="w-6 h-6" /></a>
+                <a href="#" className="text-zinc-400 hover:text-white transition-colors"><Mail className="w-6 h-6" /></a>
+              </div>
             </div>
-          </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      </Reveal>
 
       <motion.div 
         initial={{ opacity: 0 }}
@@ -288,16 +287,21 @@ const Experience = () => {
   ];
 
   return (
-    <section id="experience" className="py-32 px-6">
-      <Reveal className="max-w-7xl mx-auto">
+    <section id="experience" className="py-32 px-6 relative">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 rounded-full blur-3xl -z-10" />
+      <Reveal className="max-w-7xl mx-auto glass p-12 md:p-20 rounded-[40px] border border-white/10">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-4">
-          <div>
-            <span className="text-accent font-mono text-sm mb-2 block">// CAREER PATH</span>
-            <h2 className="text-4xl md:text-5xl font-bold">Experience</h2>
-          </div>
-          <p className="text-zinc-500 max-w-md">
-            A decade of building scalable solutions for industry leaders and high-growth startups.
-          </p>
+          <Parallax offset={30}>
+            <div>
+              <span className="text-accent font-mono text-sm mb-2 block">// CAREER PATH</span>
+              <h2 className="text-4xl md:text-5xl font-bold text-white">Experience</h2>
+            </div>
+          </Parallax>
+          <Parallax offset={-20}>
+            <p className="text-zinc-500 max-w-md">
+              A decade of building scalable solutions for industry leaders and high-growth startups.
+            </p>
+          </Parallax>
         </div>
 
         <div className="space-y-12">
@@ -307,12 +311,12 @@ const Experience = () => {
               delay={i * 100}
               className="group relative grid grid-cols-1 md:grid-cols-[200px_1fr] gap-8 p-8 rounded-2xl hover:bg-white/[0.02] transition-colors border border-transparent hover:border-white/5"
             >
-              <div className="text-zinc-500 font-mono text-sm pt-1">
+              <Parallax offset={15} className="text-zinc-500 font-mono text-sm pt-1">
                 {exp.period}
-              </div>
+              </Parallax>
               <div>
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-2">
-                  <h3 className="text-2xl font-bold group-hover:text-accent transition-colors">{exp.role}</h3>
+                  <h3 className="text-2xl font-bold group-hover:text-accent transition-colors text-white">{exp.role}</h3>
                   <span className="text-zinc-400 font-medium">{exp.company}</span>
                 </div>
                 <p className="text-zinc-400 mb-6 leading-relaxed max-w-3xl">
@@ -388,10 +392,10 @@ const Skills = () => {
 
   return (
     <section id="skills" className="py-32 px-6 bg-white/[0.01]">
-      <Reveal className="max-w-7xl mx-auto">
+      <Reveal className="max-w-7xl mx-auto glass p-12 md:p-20 rounded-[40px] border border-white/10">
         <div className="text-center mb-20">
           <span className="text-accent font-mono text-sm mb-2 block">// TECH STACK</span>
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">Expertise</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">Expertise</h2>
           <p className="text-zinc-500 max-w-2xl mx-auto">
             Deep technical knowledge across the entire stack, from pixel-perfect interfaces to distributed cloud infrastructure.
           </p>
@@ -402,12 +406,12 @@ const Skills = () => {
             <Reveal
               key={i}
               delay={i * 100}
-              className="glass p-8 rounded-3xl hover:border-accent/30 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,255,157,0.05)] transition-all duration-500 group"
+              className="glass p-8 rounded-3xl hover:border-accent/30 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,255,157,0.05)] transition-all duration-500 group h-full"
             >
               <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent mb-6 group-hover:scale-110 transition-transform">
                 {group.icon}
               </div>
-              <h3 className="text-xl font-bold mb-2">{group.title}</h3>
+              <h3 className="text-xl font-bold mb-2 text-white">{group.title}</h3>
               <p className="text-zinc-500 text-xs mb-6 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-2 group-hover:translate-y-0 leading-relaxed">
                 {group.description}
               </p>
@@ -459,11 +463,11 @@ const Projects = () => {
 
   return (
     <section id="projects" className="py-32 px-6">
-      <Reveal className="max-w-7xl mx-auto">
+      <Reveal className="max-w-7xl mx-auto glass p-12 md:p-20 rounded-[40px] border border-white/10">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-4">
           <div>
             <span className="text-accent font-mono text-sm mb-2 block">// SELECTED WORKS</span>
-            <h2 className="text-4xl md:text-5xl font-bold">Projects</h2>
+            <h2 className="text-4xl md:text-5xl font-bold text-white">Projects</h2>
           </div>
           <button className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2 font-medium">
             View all projects <ChevronRight className="w-4 h-4" />
@@ -472,36 +476,37 @@ const Projects = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {projects.map((project, i) => (
-            <Reveal
-              key={i}
-              delay={i * 100}
-              className="group cursor-pointer hover:scale-[1.02] transition-transform duration-500"
-            >
-              <div className="relative aspect-[4/3] overflow-hidden rounded-3xl mb-6">
-                <img 
-                  src={project.image} 
-                  alt={project.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none skew-x-12" />
-                <div className="absolute inset-0 bg-gradient-to-tr from-accent/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <div className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center">
-                    <ExternalLink className="w-6 h-6" />
+            <Parallax key={i} offset={(i + 1) * 20}>
+              <Reveal
+                delay={i * 100}
+                className="group cursor-pointer hover:scale-[1.02] transition-transform duration-500"
+              >
+                <div className="relative aspect-[4/3] overflow-hidden rounded-3xl mb-6">
+                  <img 
+                    src={project.image} 
+                    alt={project.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none skew-x-12" />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-accent/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center">
+                      <ExternalLink className="w-6 h-6" />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <span className="text-accent font-mono text-xs uppercase tracking-widest mb-2 block">
-                {project.category}
-              </span>
-              <h3 className="text-2xl font-bold mb-2 group-hover:text-accent transition-colors">
-                {project.title}
-              </h3>
-              <p className="text-zinc-500 text-sm leading-relaxed">
-                {project.description}
-              </p>
-            </Reveal>
+                <span className="text-accent font-mono text-xs uppercase tracking-widest mb-2 block">
+                  {project.category}
+                </span>
+                <h3 className="text-2xl font-bold mb-2 group-hover:text-accent transition-colors text-white">
+                  {project.title}
+                </h3>
+                <p className="text-zinc-500 text-sm leading-relaxed">
+                  {project.description}
+                </p>
+              </Reveal>
+            </Parallax>
           ))}
         </div>
       </Reveal>
@@ -530,10 +535,10 @@ const Contact = () => {
     <section id="contact" className="py-32 px-6 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto glass p-12 md:p-20 rounded-[40px] border border-white/10">
         <Reveal className="mb-16">
           <span className="text-accent font-mono text-sm mb-2 block">// GET IN TOUCH</span>
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">Contact</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">Contact</h2>
           <p className="text-zinc-500 max-w-2xl">
             Have a project in mind or just want to chat? Feel free to reach out. 
             I'm always open to discussing new opportunities and creative ideas.
@@ -545,7 +550,7 @@ const Contact = () => {
           <Reveal delay={200}>
             <div className="space-y-10">
               <div className="space-y-6">
-                <h3 className="text-2xl font-bold">Contact Information</h3>
+                <h3 className="text-2xl font-bold text-white">Contact Information</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-4 group">
                     <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-black transition-all">
@@ -580,7 +585,7 @@ const Contact = () => {
               </div>
 
               <div className="space-y-6">
-                <h3 className="text-2xl font-bold">Social Profiles</h3>
+                <h3 className="text-2xl font-bold text-white">Social Profiles</h3>
                 <div className="flex gap-4">
                   {[
                     { icon: <Github />, label: 'GitHub', href: '#' },
@@ -676,8 +681,80 @@ const Contact = () => {
 };
 
 export default function App() {
+  const { scrollYProgress } = useScroll();
+  const floatY1 = useTransform(scrollYProgress, [0, 1], [0, -200]);
+  const floatY2 = useTransform(scrollYProgress, [0, 1], [0, 200]);
+  const floatRotate = useTransform(scrollYProgress, [0, 1], [0, 45]);
+  
+  // New Glass Parallax Transforms
+  const glassY1 = useTransform(scrollYProgress, [0, 1], [0, -400]);
+  const glassY2 = useTransform(scrollYProgress, [0, 1], [0, 400]);
+  const glassY3 = useTransform(scrollYProgress, [0, 1], [0, -600]);
+  const glassRotate = useTransform(scrollYProgress, [0, 1], [0, 90]);
+  const glassRotateSlow = useTransform(scrollYProgress, [0, 1], [0, 45]);
+  
+  // Background gradient transformations
+  const grad1X = useTransform(scrollYProgress, [0, 1], ["20%", "80%"]);
+  const grad1Y = useTransform(scrollYProgress, [0, 1], ["10%", "90%"]);
+  const grad2X = useTransform(scrollYProgress, [0, 1], ["80%", "20%"]);
+  const grad2Y = useTransform(scrollYProgress, [0, 1], ["90%", "10%"]);
+
   return (
-    <div className="min-h-screen font-sans selection:bg-accent selection:text-black">
+    <div className="min-h-screen font-sans selection:bg-accent selection:text-black bg-[#050505] text-white relative overflow-x-hidden">
+      {/* Soft Black Gradient Background */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        {/* Primary Soft Black Glow */}
+        <motion.div 
+          style={{ left: grad1X, top: grad1Y }}
+          className="absolute w-[90vw] h-[90vw] bg-[#0a0a0a] rounded-full blur-[100px] opacity-60 will-change-transform"
+        />
+        {/* Secondary Soft Black Glow */}
+        <motion.div 
+          style={{ right: grad2X, bottom: grad2Y }}
+          className="absolute w-[70vw] h-[70vw] bg-[#080808] rounded-full blur-[80px] opacity-40 will-change-transform"
+        />
+        {/* Deep Ambient Shadows */}
+        <div className="absolute top-[-20%] left-[-20%] w-[60vw] h-[60vw] bg-black rounded-full blur-[150px]" />
+        <div className="absolute bottom-[-20%] right-[-20%] w-[80vw] h-[80vw] bg-black rounded-full blur-[150px]" />
+        
+        {/* Noise Texture for "Glass" feel */}
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.02] mix-blend-overlay" />
+      </div>
+
+      {/* 3D Floating Background Elements */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        {/* Large Blurry Glass Elements - Optimized */}
+        <motion.div 
+          style={{ y: glassY1, rotate: glassRotate }}
+          className="absolute top-[15%] left-[10%] w-[30vw] h-[30vw] bg-white/[0.02] backdrop-blur-[40px] rounded-[60px] border border-white/5 will-change-transform"
+        />
+        <motion.div 
+          style={{ y: glassY2, rotate: -glassRotate }}
+          className="absolute top-[50%] right-[5%] w-[25vw] h-[25vw] bg-white/[0.01] backdrop-blur-[50px] rounded-full border border-white/5 will-change-transform"
+        />
+        <motion.div 
+          style={{ y: glassY3, rotate: glassRotateSlow }}
+          className="absolute bottom-[10%] left-[30%] w-[20vw] h-[20vw] bg-white/[0.02] backdrop-blur-[30px] rounded-3xl border border-white/5 will-change-transform"
+        />
+
+        <motion.div 
+          style={{ y: floatY1, rotate: floatRotate }}
+          className="absolute top-[10%] -left-20 w-64 h-64 border border-white/5 rounded-full will-change-transform"
+        />
+        <motion.div 
+          style={{ y: floatY2, rotate: -floatRotate }}
+          className="absolute top-[40%] -right-20 w-80 h-80 border border-white/5 rounded-[40px] will-change-transform"
+        />
+        <motion.div 
+          style={{ y: floatY1, x: floatY2 }}
+          className="absolute bottom-[10%] left-[20%] w-4 h-4 bg-accent/20 rounded-full blur-sm"
+        />
+        <motion.div 
+          style={{ y: floatY2, x: floatY1 }}
+          className="absolute top-[20%] right-[30%] w-2 h-2 bg-blue-500/20 rounded-full blur-sm"
+        />
+      </div>
+
       <Navbar />
       <main>
         <Hero />
