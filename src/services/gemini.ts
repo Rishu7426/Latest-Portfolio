@@ -1,8 +1,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const API_KEY = process.env.GEMINI_API_KEY || "";
-
-export const ai = new GoogleGenAI({ apiKey: API_KEY });
+function getAI() {
+  const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is missing. Please set it in your environment variables.");
+  }
+  return new GoogleGenAI({ apiKey });
+}
 
 const PORTFOLIO_CONTEXT = `
 You are an AI assistant for Alex Rivers, a Senior Staff Engineer with 12+ years of experience.
@@ -26,6 +30,7 @@ Tone: Professional, helpful, concise, and technically sophisticated.
 `;
 
 export async function askChatbot(message: string, history: { role: string, parts: { text: string }[] }[]) {
+  const ai = getAI();
   const model = "gemini-3-flash-preview";
   const chat = ai.chats.create({
     model,
@@ -40,6 +45,7 @@ export async function askChatbot(message: string, history: { role: string, parts
 }
 
 export async function getProjectSuggestions(visitorInterests: string) {
+  const ai = getAI();
   const model = "gemini-3-flash-preview";
   const response = await ai.models.generateContent({
     model,
@@ -64,7 +70,25 @@ export async function getProjectSuggestions(visitorInterests: string) {
   return JSON.parse(response.text || "[]");
 }
 
+export async function generateProjectCodeStream(prompt: string) {
+  const ai = getAI();
+  const model = "gemini-3-flash-preview";
+  
+  return ai.models.generateContentStream({
+    model,
+    contents: `Generate a single-file HTML/CSS/JS prototype for this project idea: "${prompt}". 
+    The code should be modern, responsive, and visually appealing. 
+    Alex Rivers' style is minimal, high-performance, and "glassmorphic".
+    Include all CSS in a <style> tag and JS in a <script> tag.
+    Return ONLY the code, no markdown formatting or explanations.`,
+    config: {
+      systemInstruction: PORTFOLIO_CONTEXT + "\nYou are a world-class frontend architect. You write clean, performant, and beautiful code.",
+    }
+  });
+}
+
 export async function summarizeResume() {
+  const ai = getAI();
   const model = "gemini-3-flash-preview";
   const response = await ai.models.generateContent({
     model,

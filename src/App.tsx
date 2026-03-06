@@ -36,7 +36,7 @@ import {
   FileText,
   Loader2
 } from 'lucide-react';
-import { askChatbot, getProjectSuggestions, summarizeResume } from './services/gemini';
+import { askChatbot, getProjectSuggestions, summarizeResume, generateProjectCodeStream } from './services/gemini';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -216,19 +216,28 @@ const Hero = () => {
   const [isSummarizing, setIsSummarizing] = useState(false);
 
   const handleSummarize = async () => {
+    console.log("handleSummarize called");
     setIsSummarizing(true);
+    setSummary("Generating your career summary...");
     try {
       const text = await summarizeResume();
-      setSummary(text || "Error generating summary.");
-    } catch (err) {
-      console.error(err);
+      console.log("summarizeResume response:", text);
+      if (text) {
+        setSummary(text);
+      } else {
+        setSummary("The AI was unable to generate a summary at this time. This could be due to an empty response from the model.");
+      }
+    } catch (err: any) {
+      console.error("summarizeResume error:", err);
+      const errorMessage = err?.message || "Unknown error";
+      setSummary(`Failed to connect to the AI service. Error: ${errorMessage}. Please ensure your GEMINI_API_KEY is valid and has sufficient quota.`);
     } finally {
       setIsSummarizing(false);
     }
   };
 
   return (
-    <section id="about" className="relative h-screen flex items-center justify-center overflow-hidden pt-20 px-6">
+    <section id="about" className="relative min-h-screen flex items-center justify-center pt-32 pb-20 px-6">
       <Reveal className="w-full max-w-5xl">
         <motion.div 
           style={{ y }}
@@ -278,7 +287,7 @@ const Hero = () => {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-accent/5 border border-accent/20 p-6 rounded-2xl text-left max-w-2xl mx-auto"
+                  className="bg-accent/5 border border-accent/20 p-6 rounded-2xl text-left max-w-2xl mx-auto max-h-[400px] overflow-y-auto custom-scrollbar"
                 >
                   <p className="text-accent text-sm leading-relaxed italic">
                     "{summary}"
@@ -558,7 +567,6 @@ const Projects = () => {
         </div>
 
         {/* AI Project Suggestion Tool */}
-        <ProjectSuggestions />
       </Reveal>
     </section>
   );
@@ -730,68 +738,154 @@ const Contact = () => {
   );
 };
 
-const ProjectSuggestions = () => {
-  const [interests, setInterests] = useState("");
-  const [suggestions, setSuggestions] = useState<{title: string, description: string}[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+const AIProjectGenerator = () => {
+  const [prompt, setPrompt] = useState("");
+  const [code, setCode] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleGetSuggestions = async () => {
-    if (!interests.trim()) return;
-    setIsLoading(true);
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return;
+    setIsGenerating(true);
+    setCode("");
+    setError(null);
     try {
-      const data = await getProjectSuggestions(interests);
-      setSuggestions(data);
-    } catch (err) {
+      const stream = await generateProjectCodeStream(prompt);
+      let fullCode = "";
+      for await (const chunk of stream) {
+        fullCode += chunk.text;
+        // Strip markdown backticks if they appear
+        const cleaned = fullCode.replace(/```html|```javascript|```css|```/g, '').trim();
+        setCode(cleaned);
+      }
+    } catch (err: any) {
       console.error(err);
+      setError(err.message || "Failed to generate code.");
     } finally {
-      setIsLoading(false);
+      setIsGenerating(false);
     }
   };
 
   return (
-    <div className="mt-20 pt-20 border-t border-white/10">
-      <div className="max-w-2xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-mono mb-6">
-          <Sparkles className="w-3 h-3" /> AI PROJECT GENERATOR
-        </div>
-        <h3 className="text-3xl font-bold text-white mb-4">What should I build next?</h3>
-        <p className="text-zinc-500 mb-8">
-          Tell me your interests or a problem you're facing, and I'll use Gemini to suggest how Alex's expertise could solve it.
-        </p>
-        
-        <div className="flex gap-2 mb-10">
-          <input 
-            type="text" 
-            value={interests}
-            onChange={(e) => setInterests(e.target.value)}
-            placeholder="e.g. AI-powered healthcare, Web3 gaming, sustainable energy..."
-            className="flex-1 bg-white/5 border border-white/10 rounded-full px-6 py-3 text-white focus:outline-none focus:border-accent/50 transition-colors"
-          />
-          <button 
-            onClick={handleGetSuggestions}
-            disabled={isLoading || !interests.trim()}
-            className="px-6 py-3 bg-accent text-black font-bold rounded-full hover:bg-white transition-all disabled:opacity-50"
-          >
-            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Generate"}
-          </button>
+    <section id="generator" className="py-32 px-6 border-t border-white/5">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-mono mb-6 uppercase tracking-widest">
+              <Sparkles className="w-3 h-3" /> AI Project Lab
+            </div>
+            <h2 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
+              Real-time <span className="text-gradient">Prototype</span> <br />
+              Generator.
+            </h2>
+            <p className="text-zinc-400 text-lg font-light leading-relaxed">
+              Describe a project idea, and Alex's AI will generate a functional prototype in real-time.
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-          {suggestions.map((s, i) => (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-accent/30 transition-colors"
-            >
-              <h4 className="text-accent font-bold mb-2">{s.title}</h4>
-              <p className="text-zinc-400 text-xs leading-relaxed">{s.description}</p>
-            </motion.div>
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Input & Code Area (3/4) */}
+          <div className="lg:col-span-3 space-y-6">
+            <div className="glass p-8 rounded-[32px] border border-white/10">
+              <div className="flex gap-4 mb-8">
+                <input 
+                  type="text" 
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                  placeholder="e.g. A real-time weather dashboard with glassmorphic cards..."
+                  className="flex-1 bg-white/5 border border-white/10 rounded-full px-6 py-4 text-white focus:outline-none focus:border-accent/50 transition-colors"
+                />
+                <button 
+                  onClick={handleGenerate}
+                  disabled={isGenerating || !prompt.trim()}
+                  className="px-8 py-4 bg-accent text-black font-bold rounded-full hover:bg-white transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Terminal className="w-5 h-5" />}
+                  {isGenerating ? "Generating..." : "Build Prototype"}
+                </button>
+              </div>
+
+              {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
+
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-accent/20 to-blue-500/20 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+                <div className="relative bg-black/40 border border-white/10 rounded-2xl p-6 font-mono text-sm h-[500px] overflow-y-auto custom-scrollbar">
+                  <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-4">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/40"></div>
+                      <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/40"></div>
+                      <div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/40"></div>
+                    </div>
+                    <span className="text-zinc-500 text-[10px] uppercase tracking-widest ml-2">prototype.html</span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(code);
+                      }}
+                      className="ml-auto text-[10px] text-zinc-500 hover:text-white transition-colors flex items-center gap-1"
+                    >
+                      Copy Code
+                    </button>
+                  </div>
+                  <pre className="text-zinc-300 whitespace-pre-wrap">
+                    {code || "// Your generated code will appear here..."}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Preview Area (1/4) */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-32">
+              <div className="glass p-6 rounded-[32px] border border-white/10 h-[600px] flex flex-col">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-mono text-accent uppercase tracking-widest flex items-center gap-2">
+                    <Globe className="w-3 h-3" /> Live Preview
+                  </h3>
+                  {code && (
+                    <button 
+                      onClick={() => {
+                        const blob = new Blob([code], { type: 'text/html' });
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, '_blank');
+                      }}
+                      className="text-[10px] text-zinc-500 hover:text-white transition-colors flex items-center gap-1"
+                    >
+                      <ExternalLink className="w-3 h-3" /> Popout
+                    </button>
+                  )}
+                </div>
+                <div className="flex-1 bg-zinc-950 rounded-xl overflow-hidden border border-white/10 relative">
+                  {code ? (
+                    <iframe 
+                      key={isGenerating ? 'generating' : 'finished'}
+                      srcDoc={code}
+                      title="Preview"
+                      className="w-full h-full border-none"
+                      sandbox="allow-scripts allow-modals allow-popups"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-zinc-900">
+                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                        <Layers className="w-6 h-6 text-zinc-700" />
+                      </div>
+                      <p className="text-zinc-600 text-xs font-mono uppercase tracking-widest">
+                        Waiting for <br /> generation...
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <p className="mt-4 text-[10px] text-zinc-500 leading-relaxed">
+                  * This is a sandboxed preview of the generated code.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -996,6 +1090,7 @@ export default function App() {
         <Hero />
         <Experience />
         <Skills />
+        <AIProjectGenerator />
         <Projects />
         <Contact />
       </main>
