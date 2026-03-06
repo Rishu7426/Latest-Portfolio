@@ -30,8 +30,13 @@ import {
   Server,
   MapPin,
   Phone,
-  Send
+  Send,
+  Bot,
+  Sparkles,
+  FileText,
+  Loader2
 } from 'lucide-react';
+import { askChatbot, getProjectSuggestions, summarizeResume } from './services/gemini';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -207,6 +212,20 @@ const Navbar = () => {
 const Hero = () => {
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, 200]);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+
+  const handleSummarize = async () => {
+    setIsSummarizing(true);
+    try {
+      const text = await summarizeResume();
+      setSummary(text || "Error generating summary.");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
 
   return (
     <section id="about" className="relative h-screen flex items-center justify-center overflow-hidden pt-20 px-6">
@@ -231,19 +250,48 @@ const Hero = () => {
               Senior Staff Engineer with 12+ years of experience in distributed systems, 
               cloud architecture, and high-performance frontend engineering.
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex flex-wrap justify-center gap-4 mb-8">
               <a 
                 href="#projects"
                 className="px-8 py-4 bg-white text-black font-bold rounded-full flex items-center gap-2 hover:bg-accent transition-all group"
               >
                 View Projects <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
               </a>
+              <button 
+                onClick={handleSummarize}
+                disabled={isSummarizing}
+                className="px-8 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-full flex items-center gap-2 hover:bg-white/10 transition-all group disabled:opacity-50"
+              >
+                {isSummarizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                AI Summary
+              </button>
               <div className="flex items-center gap-4 px-4">
                 <a href="#" className="text-zinc-400 hover:text-white transition-colors"><Github className="w-6 h-6" /></a>
                 <a href="#" className="text-zinc-400 hover:text-white transition-colors"><Linkedin className="w-6 h-6" /></a>
                 <a href="#" className="text-zinc-400 hover:text-white transition-colors"><Mail className="w-6 h-6" /></a>
               </div>
             </div>
+
+            <AnimatePresence>
+              {summary && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-accent/5 border border-accent/20 p-6 rounded-2xl text-left max-w-2xl mx-auto"
+                >
+                  <p className="text-accent text-sm leading-relaxed italic">
+                    "{summary}"
+                  </p>
+                  <button 
+                    onClick={() => setSummary(null)}
+                    className="mt-4 text-[10px] uppercase tracking-widest text-zinc-500 hover:text-white transition-colors"
+                  >
+                    Close Summary
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </motion.div>
       </Reveal>
@@ -392,7 +440,7 @@ const Skills = () => {
 
   return (
     <section id="skills" className="py-32 px-6 bg-white/[0.01]">
-      <Reveal className="max-w-7xl mx-auto glass p-12 md:p-20 rounded-[40px] border border-white/10">
+      <div className="max-w-7xl mx-auto glass p-12 md:p-20 rounded-[40px] border border-white/10">
         <div className="text-center mb-20">
           <span className="text-accent font-mono text-sm mb-2 block">// TECH STACK</span>
           <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">Expertise</h2>
@@ -403,35 +451,34 @@ const Skills = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {skillGroups.map((group, i) => (
-            <Reveal
+            <div
               key={i}
-              delay={i * 100}
-              className="glass p-8 rounded-3xl hover:border-accent/30 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,255,157,0.05)] transition-all duration-500 group h-full"
+              className="glass p-8 rounded-3xl border-white/10 group h-full"
             >
-              <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent mb-6 group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent mb-6">
                 {group.icon}
               </div>
               <h3 className="text-xl font-bold mb-2 text-white">{group.title}</h3>
-              <p className="text-zinc-500 text-xs mb-6 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-2 group-hover:translate-y-0 leading-relaxed">
+              <p className="text-zinc-500 text-xs mb-6 leading-relaxed">
                 {group.description}
               </p>
               <ul className="space-y-3">
                 {group.skills.map(skill => (
-                  <li key={skill.name} className="group/skill flex flex-col gap-1 text-zinc-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-300 cursor-default">
+                  <li key={skill.name} className="flex flex-col gap-1 text-zinc-400 text-sm cursor-default">
                     <div className="flex items-center gap-2">
                       <ChevronRight className="w-3 h-3 text-accent" />
                       {skill.name}
                     </div>
-                    <span className="max-h-0 overflow-hidden opacity-0 group-hover/skill:max-h-20 group-hover/skill:opacity-100 transition-all duration-500 text-[10px] text-zinc-500 pl-5 leading-tight">
+                    <span className="text-[10px] text-zinc-500 pl-5 leading-tight">
                       {skill.desc}
                     </span>
                   </li>
                 ))}
               </ul>
-            </Reveal>
+            </div>
           ))}
         </div>
-      </Reveal>
+      </div>
     </section>
   );
 };
@@ -474,7 +521,7 @@ const Projects = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
           {projects.map((project, i) => (
             <Parallax key={i} offset={(i + 1) * 20}>
               <Reveal
@@ -509,6 +556,9 @@ const Projects = () => {
             </Parallax>
           ))}
         </div>
+
+        {/* AI Project Suggestion Tool */}
+        <ProjectSuggestions />
       </Reveal>
     </section>
   );
@@ -680,6 +730,192 @@ const Contact = () => {
   );
 };
 
+const ProjectSuggestions = () => {
+  const [interests, setInterests] = useState("");
+  const [suggestions, setSuggestions] = useState<{title: string, description: string}[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleGetSuggestions = async () => {
+    if (!interests.trim()) return;
+    setIsLoading(true);
+    try {
+      const data = await getProjectSuggestions(interests);
+      setSuggestions(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="mt-20 pt-20 border-t border-white/10">
+      <div className="max-w-2xl mx-auto text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-mono mb-6">
+          <Sparkles className="w-3 h-3" /> AI PROJECT GENERATOR
+        </div>
+        <h3 className="text-3xl font-bold text-white mb-4">What should I build next?</h3>
+        <p className="text-zinc-500 mb-8">
+          Tell me your interests or a problem you're facing, and I'll use Gemini to suggest how Alex's expertise could solve it.
+        </p>
+        
+        <div className="flex gap-2 mb-10">
+          <input 
+            type="text" 
+            value={interests}
+            onChange={(e) => setInterests(e.target.value)}
+            placeholder="e.g. AI-powered healthcare, Web3 gaming, sustainable energy..."
+            className="flex-1 bg-white/5 border border-white/10 rounded-full px-6 py-3 text-white focus:outline-none focus:border-accent/50 transition-colors"
+          />
+          <button 
+            onClick={handleGetSuggestions}
+            disabled={isLoading || !interests.trim()}
+            className="px-6 py-3 bg-accent text-black font-bold rounded-full hover:bg-white transition-all disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Generate"}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+          {suggestions.map((s, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-accent/30 transition-colors"
+            >
+              <h4 className="text-accent font-bold mb-2">{s.title}</h4>
+              <p className="text-zinc-400 text-xs leading-relaxed">{s.description}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Chatbot = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<{role: string, parts: {text: string}[]}[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+    
+    const userMsg = { role: "user", parts: [{ text: input }] };
+    setMessages(prev => [...prev, userMsg]);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const response = await askChatbot(input, messages);
+      setMessages(prev => [...prev, { role: "model", parts: [{ text: response || "I'm sorry, I couldn't process that." }] }]);
+    } catch (err) {
+      console.error(err);
+      setMessages(prev => [...prev, { role: "model", parts: [{ text: "Error connecting to Gemini. Please check your API key." }] }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-8 right-8 z-[100]">
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            className="absolute bottom-20 right-0 w-[350px] h-[500px] glass rounded-3xl border border-white/10 flex flex-col overflow-hidden shadow-2xl"
+          >
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-accent/5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-black">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Alex's AI Assistant</h4>
+                  <p className="text-[10px] text-accent font-mono uppercase">Powered by Gemini</p>
+                </div>
+              </div>
+              <button onClick={() => setIsOpen(false)} className="text-zinc-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
+              {messages.length === 0 && (
+                <div className="text-center py-10">
+                  <Bot className="w-10 h-10 text-accent mx-auto mb-4 opacity-20" />
+                  <p className="text-zinc-500 text-sm">Ask me anything about Alex's experience, skills, or projects!</p>
+                </div>
+              )}
+              {messages.map((msg, i) => (
+                <div key={i} className={cn(
+                  "flex flex-col max-w-[80%]",
+                  msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"
+                )}>
+                  <div className={cn(
+                    "p-3 rounded-2xl text-sm",
+                    msg.role === "user" ? "bg-accent text-black rounded-tr-none" : "bg-white/5 text-zinc-300 border border-white/10 rounded-tl-none"
+                  )}>
+                    {msg.parts[0].text}
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex items-start mr-auto">
+                  <div className="bg-white/5 p-3 rounded-2xl rounded-tl-none border border-white/10">
+                    <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-white/10 bg-black/20">
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder="Type a message..."
+                  className="flex-1 bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-white focus:outline-none focus:border-accent/50"
+                />
+                <button 
+                  onClick={handleSend}
+                  disabled={isLoading || !input.trim()}
+                  className="w-10 h-10 rounded-full bg-accent text-black flex items-center justify-center hover:bg-white transition-colors disabled:opacity-50"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-16 h-16 rounded-full bg-accent text-black flex items-center justify-center shadow-2xl hover:bg-white transition-colors group"
+      >
+        {isOpen ? <X className="w-6 h-6" /> : <Bot className="w-6 h-6 group-hover:rotate-12 transition-transform" />}
+      </motion.button>
+    </div>
+  );
+};
+
 export default function App() {
   const { scrollYProgress } = useScroll();
   const floatY1 = useTransform(scrollYProgress, [0, 1], [0, -200]);
@@ -763,6 +999,7 @@ export default function App() {
         <Projects />
         <Contact />
       </main>
+      <Chatbot />
       
       {/* Global Cursor Effect (Optional but cool) */}
       <div className="fixed inset-0 pointer-events-none z-[9999] mix-blend-difference">
